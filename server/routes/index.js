@@ -1,9 +1,21 @@
 const express = require("express");
 const db = require("../db");
 const bodyParser = require("body-parser");
+const multer = require("multer");
 
 const router = express.Router();
+
 const urlencodedParser = bodyParser.urlencoded({ extended: false });
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./uploads/");
+  },
+  filename: function (req, file, cb) {
+    cb(null, new Date().toISOString() + file.originalname);
+  },
+});
+const upload = multer({ storage });
 
 router.get("/users", async (req, res, next) => {
   try {
@@ -31,24 +43,30 @@ router.get("/users/:id", async (req, res, next) => {
   }
 });
 
-router.post("/users", urlencodedParser, async (req, res, next) => {
-  try {
-    const user = await db.create("users", {
-      name: req.body.name,
-      email: req.body.email,
-      password: req.body.password,
-      date_created: new Date().getTime(),
-    });
-    res.json({
-      status: "success",
-      message: "user has been created",
-      data: user,
-    });
-  } catch (err) {
-    console.log(err);
-    res.sendStatus(500);
+router.post(
+  "/users",
+  urlencodedParser,
+  upload.single("avatar"),
+  async (req, res, next) => {
+    console.log(req.file);
+    try {
+      const user = await db.create("users", {
+        name: req.body.name,
+        email: req.body.email,
+        password: req.body.password,
+        date_created: new Date().getTime(),
+      });
+      res.json({
+        status: "success",
+        message: "user has been created",
+        data: user,
+      });
+    } catch (err) {
+      console.log(err);
+      res.sendStatus(500);
+    }
   }
-});
+);
 
 router.put("/users/:id", urlencodedParser, async (req, res, next) => {
   try {
