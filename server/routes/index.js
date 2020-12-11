@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db");
 const bodyParser = require("body-parser");
 const multer = require("multer");
+const fs = require("fs");
 
 const router = express.Router();
 
@@ -15,7 +16,21 @@ const storage = multer.diskStorage({
     cb(null, new Date().toISOString() + file.originalname);
   },
 });
-const upload = multer({ storage });
+const fileFilter = (req, file, cb) => {
+  // reject a file
+  if (file.mimetype == "image/jpeg" || file.mimetype == "image/png") {
+    cb(null, true);
+  } else {
+    cb(null, false);
+  }
+};
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 1024 * 1024 * 5,
+  },
+  fileFilter,
+});
 
 router.get("/users", async (req, res, next) => {
   try {
@@ -48,14 +63,20 @@ router.post(
   urlencodedParser,
   upload.single("avatar"),
   async (req, res, next) => {
+    let data = req.body;
+
     console.log(req.file);
+
+    if (!req.file) {
+      data.avatar = "default.jpg";
+    } else {
+      data.avatar = req.file.filename;
+    }
+
     try {
-      const user = await db.create("users", {
-        name: req.body.name,
-        email: req.body.email,
-        password: req.body.password,
-        date_created: new Date().getTime(),
-      });
+      data.date_created = new Date().getTime();
+
+      const user = await db.create("users", data);
       res.json({
         status: "success",
         message: "user has been created",
@@ -68,31 +89,58 @@ router.post(
   }
 );
 
-router.put("/users/:id", urlencodedParser, async (req, res, next) => {
-  try {
-    const user = await db.update(
-      "users",
-      {
-        name: req.body.name,
-        email: req.body.email,
-        password: req.body.password,
-      },
-      req.params.id
-    );
-    res.json({
-      status: "success",
-      message: "user has been updated",
-      data: user,
-    });
-  } catch (err) {
-    console.log(err);
-    res.sendStatus(500);
+router.put(
+  "/users/:id",
+  urlencodedParser,
+  upload.single("avatar"),
+  async (req, res, next) => {
+    let data = req.body;
+
+    let user = await db.one("users", req.params.id);
+
+    if (req.file) {
+      if (user.avatar != "default.jpg") {
+        try {
+          fs.unlinkSync("./uploads/" + user.avatar);
+        } catch (err) {
+          console.log(err);
+          res.sendStatus(500);
+        }
+      }
+
+      data.avatar = req.file.filename;
+    } else {
+      data.avatar = user.avatar;
+    }
+
+    try {
+      user = await db.update("users", data, req.params.id);
+      res.json({
+        status: "success",
+        message: "user has been updated",
+        data: user,
+      });
+    } catch (err) {
+      console.log(err);
+      res.sendStatus(500);
+    }
   }
-});
+);
 
 router.delete("/users/:id", urlencodedParser, async (req, res, next) => {
+  let user = await db.one("users", req.params.id);
+
+  if (user.avatar != "default_avatar.jpg") {
+    try {
+      fs.unlinkSync("./uploads/" + user.avatar);
+    } catch (err) {
+      console.log(err);
+      res.sendStatus(500);
+    }
+  }
+
   try {
-    const user = await db.delete("users", req.params.id);
+    user = await db.delete("users", req.params.id);
     res.json({
       status: "success",
       message: "user has been deleted",
