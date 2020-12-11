@@ -13,7 +13,7 @@ let db = {};
 
 db.all = (table) => {
   return new Promise((resolve, reject) => {
-    pool.query("SELECT * FROM " + table, (err, results) => {
+    pool.query("SELECT * FROM `" + table + "`", (err, results) => {
       if (err) reject(err);
       resolve(results);
     });
@@ -23,7 +23,7 @@ db.all = (table) => {
 db.one = (table, id) => {
   return new Promise((resolve, reject) => {
     pool.query(
-      "SELECT * FROM " + table + " WHERE id = ?",
+      "SELECT * FROM `" + table + "` WHERE `id` = ?",
       [id],
       (err, results) => {
         if (err) reject(err);
@@ -35,15 +35,17 @@ db.one = (table, id) => {
 
 db.create = (table, data) => {
   return new Promise((resolve, reject) => {
-    let query = "INSERT INTO `" + table + "` (`id`, ";
     const keys = Object.keys(data);
-    keys.forEach(
-      (k, i) => (query += "`" + k + "`" + (i == keys.length - 1 ? "" : ", "))
-    );
+    const values = Object.values(data);
+
+    let query = "INSERT INTO `" + table + "` (`id`, ";
+    keys.forEach((k, i) => {
+      query += "`" + k + "`" + (i + 1 == keys.length ? "" : ", ");
+    });
     query += ") VALUES (NULL,";
-    Object.values(data).forEach(
-      (v, i) => (query += "'" + v + "'" + (i == keys.length - 1 ? "" : ", "))
-    );
+    values.forEach((v, i) => {
+      query += "'" + v + "'" + (i + 1 == keys.length ? "" : ", ");
+    });
     query += ")";
 
     pool.query(query, (err, results) => {
@@ -55,19 +57,21 @@ db.create = (table, data) => {
 
 db.update = (table, data, id) => {
   return new Promise((resolve, reject) => {
-    let query = "UPDATE `" + table + "` SET ";
     const keys = Object.keys(data);
-    keys.forEach(
-      (k, i) =>
-        (query +=
-          "`" +
-          k +
-          "`=" +
-          "'" +
-          Object.values(data)[i] +
-          "'" +
-          (i == keys.length - 1 ? "" : ", "))
-    );
+    const values = Object.values(data);
+
+    let query = "UPDATE `" + table + "` SET ";
+    keys.forEach((k, i) => {
+      query +=
+        "`" +
+        k +
+        "`" +
+        "=" +
+        "'" +
+        values[i] +
+        "'" +
+        (i + 1 == keys.length ? "" : ",");
+    });
     query += " WHERE id = ?";
 
     pool.query(query, [id], (err, results) => {
@@ -79,12 +83,14 @@ db.update = (table, data, id) => {
 
 db.delete = (table, id) => {
   return new Promise((resolve, reject) => {
-    let query = "DELETE FROM `" + table + "` WHERE id = ?";
-
-    pool.query(query, [id], (err, results) => {
-      if (err) reject(err);
-      resolve(results);
-    });
+    pool.query(
+      "DELETE FROM `" + table + "` WHERE id = ?",
+      [id],
+      (err, results) => {
+        if (err) reject(err);
+        resolve(results);
+      }
+    );
   });
 };
 
