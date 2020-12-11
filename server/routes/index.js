@@ -68,7 +68,7 @@ router.post(
     console.log(req.file);
 
     if (!req.file) {
-      data.avatar = "default.jpg";
+      data.avatar = "default_avatar.jpg";
     } else {
       data.avatar = req.file.filename;
     }
@@ -99,7 +99,7 @@ router.put(
     let user = await db.one("users", req.params.id);
 
     if (req.file) {
-      if (user.avatar != "default.jpg") {
+      if (user.avatar != "default_avatar.jpg") {
         try {
           fs.unlinkSync("./uploads/" + user.avatar);
         } catch (err) {
